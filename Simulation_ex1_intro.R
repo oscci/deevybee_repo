@@ -14,15 +14,18 @@
 # Also good practice to explicitly set your working directory, at start of script
 # This is the default location for finding/saving files
 # You can see what your current working directory is with command getwd()
-
 # Here is command to set working directory to Dropbox/BBSCR_STARS/Bishop on my mac
 
 setwd('/Users/dorothybishop/Dropbox/BBSRC_STARS/Bishop')
 # Note that this line has no #, and so will be treated as executable code 
 
+
 # If you are working on a PC, the syntax is a bit different, e.g.
 # setwd<-"C:\\Users\\dorothybishop\\Dropbox\\BBSRC_STARS\\Bishop"
 # You will need to set the directory to be specific for your machine
+
+# You can easily set your working directory by going to menu item 
+# Session|Set Working Directory - this allows you to select Source File Location
 
 # Next step is to specify any packages that are needed later in the program
 # R has hundreds of packages that contain useful functions
@@ -40,7 +43,7 @@ library(yarrr) # for pirate plots (see below)
 # It's also a good idea to disable scientific notation in the output to make it easy to read
 options(scipen=999) #http://stackoverflow.com/questions/25946047/how-to-prevent-scientific-notation-in-r
 
-plot(1,1) #This is just a dummy figure - to open graphics window. You can ignore it!
+plot.new() # open graphics window.
 # ------------------------------------------------------------------------
 # Simulate random numbers sampled from a normal distribution
 # ------------------------------------------------------------------------
