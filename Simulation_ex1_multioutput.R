@@ -26,7 +26,7 @@ par(mfrow=c(2,5))
     mydf$Score[(myN+1):(2*myN)]<-myvectorB # 2nd block in Score column is vectorB
     myt <- t.test(myvectorA,myvectorB) #see http://www.statmethods.net/stats/ttest.html
     myheader=paste('t = ', format(myt$statistic,digits=2),'; p = ',format(myt$p.value,digits=3))
-    pirateplot(Score~Group,data=mydf,main=myheader,   xlab="Group", ylab="Score")
+    pirateplot(Score~Group,theme=1,cex.lab=2,data=mydf,main=myheader, point.o=1, xlab="Group", ylab="Score")
   }
 dev.off()
 }
