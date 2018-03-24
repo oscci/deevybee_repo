@@ -1,18 +1,18 @@
 #-------------------------------------------------------------------------
 # Simulation Exercise 2 by DVM Bishop
-# 20th March 2017
+# 20th March 2017; updated to include P-P plot 24 March 2018
 # Simulating and saving a set of correlated variables
 #-------------------------------------------------------------------------
 
 
-setwd('/Users/dorothybishop/Dropbox/BBSRC_STARS/Bishop')
+#setwd('/Users/dorothybishop/Dropbox/BBSRC_STARS/Bishop')
 
 # Remember! you will need to download these packages if they aren't already downloaded
 library(MASS) #for mvrnorm function to make multivariate normal distributed vars
 library(Hmisc) #for rcorr function: gives correlation matrix and p values
 library(gridExtra) #for plotting output in a grid
 library(grid) #https://cran.r-project.org/web/packages/gridExtra/vignettes/tableGrob.html
-library(formatR)
+
 
 options(scipen=999) #disable scientific notation.
 
@@ -24,13 +24,13 @@ options(scipen=999) #disable scientific notation.
 nVar<-7 #number of simulated variables (arbitrary but useful for figure that will fit on screen)
 myM<-0 # Mean score for all variables in the sample - we're using z scores for simplicity
 myVar<-1 #Remember variance is SD^2. For z-scores, SD is 1, so variance is also 1
-myN<-30 #set sample size per group (You can vary this to see the effect)
-myCorr=0 #correlation between variables
-
+myN<-100 #set sample size per group (You can vary this to see the effect)
+myCorr<-0 #correlation between variables
+everyp<-vector() #initialise a vector to hold all the pvalues
 # Rather than repeatedly running the script, we are going to make a 'for' loop
 # This automatically runs the sections of script between { and } repeatedly mynSims times
 
-mynSims <- 1 # Set number of simulated datasets
+mynSims <- 10 # Set number of simulated datasets
   # We'll start with simulating a single dataset, but then later update this number
 sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p values in each run
   
@@ -42,10 +42,10 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   # This means that the correlation and covariance are the same, and the variance and SD are the same
   
   myCov<-matrix(rep(myCorr,nVar*nVar),nrow=nVar) #rep(x,y) means generate y values of x
-  # Look at myCov after running this line; you have 7 x 7 matrix with all entries .5
+  # Look at myCov after running this line; you have 7 x 7 matrix with all entries equal to myCorr
   # Try just running a command like rep(3,9) - you get a vector
    # We need to turn the vector into a 2 x 2 matrix :the matrix command achieves that
-  # 'Matrix' turns a vector into a 2 x 2 array: you need to specify n rows as above
+  # 'Matrix' turns a vector into a nrow x ncol array: you need to specify n rows as above
   
   # We need to fix our matrix so that the diagonal values correspond to variance of each variable
   diag(myCov)<-rep(myVar,nVar) # now look at myCov again
@@ -54,7 +54,7 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   # to have different correlations between different variables. 
   # Remembering that you can use square brackets to select particular rows and columns of an array,
   # how would you modify this matrix so that correlation between variables 1 and 2 was .1?
-  # (Hint: not as simple as it looks: remember correlation should be symmetric)
+  # (Hint: not as simple as it looks: remember correlation matrix must be symmetric)
   
   #----------------------------------------------------------------------------------------
   for (i in 1:mynSims){ # 'for loop' command: runs loop mynSims times
@@ -83,8 +83,8 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   # and are interested in analysing simulated data in another statistical package.
   # (You can import this saved file into SPSS or Excel).
   # But in general, it makes sense to analyse your simulated data in R.
-  # Note too that the data is always saved with the same name, so it
-  # overwrites the previous version.
+  # Note too that the data is always saved with the same name, so each time you run through the loop
+  # it overwrites the previous version.
   # Also, you would seldom be interested in a single run of a simulation: 
   # Rather, you would repeat the simulation many times to look at the pattern 
   # of results - but if you overwrite the saved data each time, 
@@ -117,6 +117,9 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   # https://cran.r-project.org/web/packages/gridExtra/vignettes/tableGrob.html
   # N.B. this won't change how myr or myrf displays on the console, but it allows you
   # to display conditionally formatted values in the Plots window
+  
+  # If you are new to R, this bit of script is fairly daunting: don't worry if you
+  # can't follow it all
   #----------------------------------------------------------------------------------------
   # Set up visual display of grid: we'll use this just to look at the last simulation
   #----------------------------------------------------------------------------------------
@@ -142,6 +145,7 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   
   for (j in 1:(nVar-1)){ #looping through each row
     for (k in (j+1):nVar){ #and each column in upper triangle of matrix
+      everyp<-c(everyp,myp[j,k])
       if(myp[j,k]<.05){ # looking for p values < .05
         
         if (i==mynSims){ #Again, we only do the next bit for final simulation
@@ -179,10 +183,27 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   # Try modifying the script by changing values of these parameters to get a feel for how
   # p-values are affected 
   
-
+  
+  #--------------------------------------------------------------------------------
+  # A P-P plot will show whether distribution of p-values departs from null expectation
+  #--------------------------------------------------------------------------------
+  ppplot<-0 #Change this to 1 if you want to see the pp plot
+  if (ppplot==1){
+  everyp<-sort(everyp)
+  np<-length(everyp)-1
+  pexp<-seq(0,1,1/np)
+  plot(pexp,everyp,cex=.5,ylab='Observed p-values',xlab='Expected p under null',main='P-P plot')
+  lines(pexp,pexp) #expected distribution of p-values under null
+  abline(h=.05,lty=2,col='red') #cutoff for p = .05
+  pbit<-paste0(round(overallp*100,0),'% p-values < .05')
+  text(.3,.7,pbit)
+  text(.3,.9,paste('True r =',round(myCorr,3)))
+  text(.3,.8,paste('N = ',myN))
+  }
+  
+  #--------------------------------------------------------------------------------
   
   # This exercise should illustrate two things:
-  
   # a) With a small sample, p-values are often nonsignificant even if the true correlation is quite large
   # Thus you can miss an important effect - make a type II error - because of low power
   # We will cover power later in the week
@@ -208,5 +229,4 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   
   # This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. https://creativecommons.org/licenses/by-nc-sa/4.0/
 
-  tidy_eval(comment=FALSE)
   
