@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------
 # Simulation introduction by DVM Bishop
-# 19th March 2017
+# 19th March 2017; updated 24th March 2018
 #-------------------------------------------------------------------------
 
 # The hashtag at the start of this line indicates it is a comment
@@ -25,7 +25,8 @@ setwd('/Users/dorothybishop/Dropbox/BBSRC_STARS/Bishop')
 # You will need to set the directory to be specific for your machine
 
 # You can easily set your working directory by going to menu item 
-# Session|Set Working Directory - this allows you to select Source File Location
+# Session|Set Working Directory - this allows you to select Source File Location, which
+# sets the working directory to same place as where you have saved this script
 
 # Next step is to specify any packages that are needed later in the program
 # R has hundreds of packages that contain useful functions
@@ -79,7 +80,9 @@ myvectorB<-rnorm(n = myN, mean = myM2, sd = mySD)
 myvectorB
 mean(myvectorB)
 sd(myvectorB)
-
+# N.B. Unless you use a command called set.seed, you'll get different values for 
+# myM1 and myM2 every time you run the script.
+# For explanation of set.seed see http://rfunction.com/archives/62 
 # ------------------------------------------------------------------------
 # compare our two vectors with a t.test
 # ------------------------------------------------------------------------
@@ -87,6 +90,8 @@ t.test(myvectorA,myvectorB) #see http://www.statmethods.net/stats/ttest.html
 
 # ------------------------------------------------------------------------
 # reformat data into a data frame
+# A data frame is a kind of matrix for holding data that can take both
+# numeric and non-numeric values. 
 # ------------------------------------------------------------------------
 
 # We're now going to stack vectorA and vectorB in a single column in a data frame
@@ -101,15 +106,21 @@ colnames(mydf)<-c('Group','Score') #c is concatenate function, puts what follows
 
 # if you look at mydf at this point, you'll see 40 rows and 2 columns, with NA values in each
 # Now we are going to populate the data frame with values
- mydf$Group[1:myN]<-1 # First set of rows allocated to group 1
- 
+range1<-1:myN #range of rows for group 1 data
+range2<-(myN+1):(2*myN) #range of rows for group 1 data
+range1
+range2
+# to see the vectors for range1 and range2
+
+ mydf$Group[range1]<-1 # First set of rows allocated to group 1
+
 # Square brackets used to refer to sections of a data frame
 # Here we specify the column first with $Group, and then the range of rows.
-# Same effect could be achieved with mydf[1:myN,1], indicating rows 1:myN, and column 1
+# Same effect could be achieved with mydf[range1,1], indicating rows 1:myN, and column 1
  
- mydf$Group[(myN+1):(2*myN)]<-2 # Next block of rows allocated to group 2
- mydf$Score[1:myN] <- myvectorA # First block in Score column is vectorA
- mydf$Score[(myN+1):(2*myN)]<-myvectorB # 2nd block in Score column is vectorB
+ mydf$Group[range2]<-2 # Next block of rows allocated to group 2
+ mydf$Score[range1] <- myvectorA # First block in Score column is vectorA
+ mydf$Score[range2]<-myvectorB # 2nd block in Score column is vectorB
  
  #Now inspect mydf: you have data in the kind of table familiar from Excel or SPSS
 #------------------------------------------------------------------------------- 
@@ -129,9 +140,10 @@ colnames(mydf)<-c('Group','Score') #c is concatenate function, puts what follows
  # But you may run out of memory eventually if you store too may plots
  
  # Turn the t-test result into a header for the graph;
- myheader=paste('t = ', format(myt$statistic,digits=2),'; p = ',format(myt$p.value,digits=3))
- # paste is used to bolt together text and/or numbers into a string
+ myheader=paste0('t = ', format(myt$statistic,digits=2),'; p = ',format(myt$p.value,digits=3))
+ # paste0 is used to bolt together text and/or numbers into a string
  # format is used to select number of decimal places to avoid v long string of numbers
+ myheader
  
 pirateplot(Score~Group,data=mydf,main=myheader,   xlab="Group", ylab="Score")
 # The pirateplot is a very neat way of showing all the data
@@ -156,6 +168,11 @@ pirateplot(Score~Group,data=mydf,main=myheader,   xlab="Group", ylab="Score")
 # What happens when myN is very large?
 
 # How often do you get a significant p-value when myvectorA and myvectorB have the same mean?
+
+# Once you feel you understand this script, you can look at:
+# Simulation_ex1_multioutput.R
+# This is a pared-down version of this script which automatically runs 10 times for each of 2 sample sizes
+
 
 
 
