@@ -27,7 +27,7 @@ myM<-0 # Mean score for all variables in the sample - we're using z scores for s
 myVar<-1 #Remember variance is SD^2. For z-scores, SD is 1, so variance is also 1
 myN<-900 #set sample size per group (You should vary this to see the effect)
 myCorr<-0 #correlation between variables: this specifies uncorrelated variables
-sigvar<-2:6 #for these vars we will have an association with outcome
+sigvar<-2:3 #for these vars we will have an association with outcome
 myES<-.1 #effect size as correlation between a sig variable and outcome
 #in GWAS it's unusual to get large effect sizes
 
@@ -71,7 +71,7 @@ colnames(everyp)<-c('Var','p')
   #--------------------------------------------------------------------------------
   #First we'll just add a column that allows us to display the sigvar variables in red
   everyp$colorcode<-1
-  everyp$colorcode[(sigvar-1)]<-2
+  everyp$colorcode[(sigvar-1)]<-2 #these are ones where we specified genuine effect
   
   #Now we are going to rank order the p-values according to size
   everyp<-everyp[order(everyp$p),] #rank order file according to pvalues
@@ -104,9 +104,11 @@ colnames(everyp)<-c('Var','p')
   #The first 2 numbers in the text command give x and y coordinates on the plot
   #Here they are selected just to put text in convenient spot on this plot
   
-  myoutput<-'Variables with low p are:'
+  myoutput<-paste('Variables with low p are:',lo.p)
   myoutput
- everyp$Var[lo.p]
+  myoutput2<-'Variables with true effect are: '
+  myoutput2
+sigvar
 
  # If r is low and sample size is small, you will find that you get 'significant' p-values
  # for variables other than 2-6. This is Type I error.
