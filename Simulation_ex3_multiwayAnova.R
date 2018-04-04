@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------
 # Simulation Exercise 3 by DVM Bishop
-# 20th March 2017
+# 20th March 2017; updated 4th March 2018 with thanks to Pieter Moors 
 # Simulating data for multiway ANOVA
 #-------------------------------------------------------------------------
 
@@ -79,11 +79,10 @@ mydata$Group <-as.factor(mydata$Group)  #this is important!
  #----------------------------------------------------------------------------------------
  # Now run an ANOVA
  #----------------------------------------------------------------------------------------
- 
-myaov<-summary(aov(value~(time*difficulty*Group)+Error(Subject/(time*difficulty)),data=mylongdata))
-  myaovbit<-unlist(myaov$`Error: Within`) # tortuous way to extract the relevant bit of output
-  ptable[i,1:7] <-myaovbit[33:39] #extract the p-values which happen to be values 33-39 in this output
-  ptable[i,8:9]<-0 #initialise col 8-9 which will categorise each ANOVA in terms of whether *any* sig effects
+ myaov<-summary(aov(value~(time*difficulty*Group)+Error(Subject/(time*difficulty)),data=mylongdata))
+ myaovbit<-unlist(myaov)[grep(pattern = "Pr", x = names(unlist(myaov)))] # tortuous way to extract the relevant bit of output
+ myaovbit <- myaovbit[which(!is.na(myaovbit))] #take values that are not NA
+ ptable[i,1:7] <-myaovbit #extract the p-values which happen to be values 33-39 in this output  ptable[i,8:9]<-0 #initialise col 8-9 which will categorise each ANOVA in terms of whether *any* sig effects
   sigp<-which(ptable[i,1:7]<.05) #find whether any p-values are < .05
   if(length(sigp)>0)
     {ptable[i,8]<-1} # if so, assign a 1 to column 8
