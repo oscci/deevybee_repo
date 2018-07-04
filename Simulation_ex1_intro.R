@@ -30,9 +30,11 @@ setwd('/Users/dorothybishop/Dropbox/BBSRC_STARS/Bishop')
 
 # Next step is to specify any packages that are needed later in the program
 # R has hundreds of packages that contain useful functions
-# You can use the library() or require() commands to tell R which ones you need, as below,
+# You can use the library() or require() commands to tell R which ones you need, 
+# as below,
 # But! these will only work if the packages are already installed on your machine
-# When you try to use functions from a package you don't have, you'll get an error message.
+# When you try to use functions from a package you don't have, you'll get an 
+# error message.
 # If that happens, you can download the package by going to Tools|Install Packages 
 # and selecting the one you need. You only need to install the package once.
 
@@ -46,7 +48,7 @@ options(scipen=999) #http://stackoverflow.com/questions/25946047/how-to-prevent-
 
 plot.new() # open graphics window.
 # ------------------------------------------------------------------------
-# Simulate random numbers sampled from a normal distribution
+# Simulate random numbers sampled from a normal distribution using rnorm function
 # ------------------------------------------------------------------------
 # You just specify the number (myN), mean (myM) and SD (mySD)
 # Naming conventions vary: I tend to preface my variables with 'my' to avoid confusion with
@@ -74,7 +76,7 @@ sd(myvectorA) # View the sd of myvectorA
 # ------------------------------------------------------------------------
 # Create another sample with same N and SD but different mean
 # ------------------------------------------------------------------------
-myM2 <- 0.3 # The mean for this population
+myM2 <- 0.5 # The mean for the population this sample comes from
 
 myvectorB<-rnorm(n = myN, mean = myM2, sd = mySD) 
 myvectorB
@@ -140,10 +142,11 @@ range2
  # But you may run out of memory eventually if you store too may plots
  
  # Turn the t-test result into a header for the graph;
- myheader=paste0('t = ', format(myt$statistic,digits=2),'; p = ',format(myt$p.value,digits=3))
+ myheader=paste0('t = ', format(myt$statistic,digits=2),
+                 '; p = ',format(myt$p.value,digits=3))
  # paste0 is used to bolt together text and/or numbers into a string
  # format is used to select number of decimal places to avoid v long string of numbers
- myheader
+ myheader #just used to display myheader on the console so you can check it
  
 pirateplot(Score~Group,data=mydf,main=myheader,   xlab="Group", ylab="Score")
 # The pirateplot is a very neat way of showing all the data

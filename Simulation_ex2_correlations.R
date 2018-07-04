@@ -7,7 +7,7 @@
 
 #setwd('/Users/dorothybishop/Dropbox/BBSRC_STARS/Bishop')
 
-# Remember! you will need to download these packages if they aren't already downloaded
+# Remember! you will need to install these packages if they aren't already installed
 library(MASS) #for mvrnorm function to make multivariate normal distributed vars
 library(Hmisc) #for rcorr function: gives correlation matrix and p values
 library(gridExtra) #for plotting output in a grid
@@ -24,7 +24,7 @@ options(scipen=999) #disable scientific notation.
 nVar<-7 #number of simulated variables (arbitrary but useful for figure that will fit on screen)
 myM<-0 # Mean score for all variables in the sample - we're using z scores for simplicity
 myVar<-1 #Remember variance is SD^2. For z-scores, SD is 1, so variance is also 1
-myN<-100 #set sample size per group (You can vary this to see the effect)
+myN<-30 #set sample size per group (You can vary this to see the effect)
 myCorr<-0 #correlation between variables
 everyp<-vector() #initialise a vector to hold all the pvalues
 # Rather than repeatedly running the script, we are going to make a 'for' loop
@@ -66,7 +66,7 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   # Generate a sample from a multivariate normal distribution with the specified correlation matrix
   #----------------------------------------------------------------------------------------
   
-  mydata<-mvrnorm(n = myN, rep(myM,nVar), myCov)
+  mydata<-mvrnorm(n = myN, mu = rep(myM,nVar), Sigma= myCov)
   # You can look at mydata by clicking on its label in the Environment tab
   #----------------------------------------------------------------------------------------
   # Save your simulated data as tab-separated text
@@ -175,7 +175,7 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   #hist(sigpcounter) #uncomment this to draw histogram showing N sig pvalues in all runs
   myoverview<-paste('Overall proportion of p < .05 is ',overallp)
  }
-  print(myoverview)
+  myoverview
   # What do you expect to see for overallp if myCorr = 0?
   # What would you expect if myCorr = .3?
   # Would the sample size make any difference?
@@ -210,7 +210,7 @@ sigpcounter=rep(0,mynSims) #initialising a vector that will count significant p 
   
   # b) When you have several variables to look at, it is easy to find false positive 'significant' correlations.
  
-  # Many scientists, seeing one large correlation in a matrix of null results, would
+  # Many people, seeing one large correlation in a matrix of null results, would
   # try to interpret it, but it is important to appreciate it might be a false positive.
   
   # One form of p-hacking is when the scientist trawls through a set of data looking for

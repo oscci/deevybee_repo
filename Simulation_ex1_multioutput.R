@@ -9,7 +9,7 @@ library(yarrr) # for pirate plots (see below)
 # disable scientific notation in the output to make it easy to read
 options(scipen=999) #http://stackoverflow.com/questions/25946047/how-to-prevent-scientific-notation-in-r
 myNs<-c(20,100) #This creates a vector with 2 values, 20 and 100. We will simulate 10 samples of each size 
-myES<-0.3 #effect size for difference between groups (you can try changing)
+myES<-0.5 #effect size for difference between groups (you can try changing this)
 
 # To run the simulation repeatedly, we will use a loop. 
 for (i in 1:2){ #This is the syntax to START a loop. The loop ends when a matching } is reached
@@ -21,7 +21,7 @@ for (i in 1:2){ #This is the syntax to START a loop. The loop ends when a matchi
   for (j in 1:10){ #inner loop, nested within outer loop. This runs 10 times. 
     #Each time it generates a new sample using script like that of Simulation_ex_1_intro.R
     myvectorA<-rnorm(n = myN, mean = 0, sd = 1) 
-    myvectorB<-rnorm(n = myN, mean = 0.3, sd = 1)
+    myvectorB<-rnorm(n = myN, mean = myES, sd = 1)
     mydf <- data.frame(matrix(data=NA,nrow=myN*2,ncol=2)) #NA indicates missing data
     colnames(mydf)<-c('Group','Score') #c is concatenate function, puts what follows in a sequence
     range1<-1:myN #range of rows for group 1 data
