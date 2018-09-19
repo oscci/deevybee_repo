@@ -1,0 +1,166 @@
+---
+title: "qus_re_declaredesign"
+author: "DVM Bishop"
+date: "19/09/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,results="HIDE",message=FALSE,warnings=FALSE)
+```
+
+## Queries re Declare Design
+
+Thanks for this package: It looks really exciting and potentially very useful. However, I'm struggling to understand some aspects, and if I'm finding it hard, then I suspect many potential users will. So I think there will be a need for more user-friendly documents. I'm happy to try and help create these.
+
+I've been playing with the script from: https://declaredesign.org/library/articles/pretest_posttest.html
+
+To try to understand the different components of the analysis, I am trying this with just the difference score analysis, to keep it simple.
+(Though I really like the way you can compare the 3 possible analyses. That's something I've wanted to do in teaching, and this looks like a great way to do that. )
+
+I can run the script without problem, and I understand the outputs. 
+
+However, I am struggling to understand how the different steps work.
+
+I'll note where I get unstuck for each chunk.
+
+```{r packages}
+require(DeclareDesign)
+require(tidyverse)
+library(DesignLibrary)
+
+N <- 100 #sample size
+ate <- 0.25 #average treatment effect
+sd_1 <- 1 #SD for group 1
+sd_2 <- 1 #SD for group 2
+rho <- 0.5 #correlation between time1 and time2
+attrition_rate <- 0.1 #no outcome data for N*attrition_rate
+```
+
+The cover story for this bit of the demo makes no sense to me. 
+When I saw you were using pregnancy as outcome, I thought this was because you wanted to make some particular point about binary outcomes. 
+But u_t1 and u_t2 and the Y variables derived from them are all normal continuous variables.
+
+The only way the model makes sense to me is if the units of analysis were geographical regions rather than individuals. But even then, pregnancy rates would not be normally distributed: more like a Poisson distribution.
+If individuals are unit of analysis, the cover story is particularly unusuitable because you would not presumably enlist a pregnant girl into the intervention! And the likelihood of pregnancy at t2 would be negatively correlated with pregnancy at t2!
+
+I'd like to develop this example for teaching, but change the cover story to something where a continuous variable measured pretest and posttest makes sense, so I suggest something like score on a vocabulary test before and after intervention to enhance vocabulary.
+
+```{r Model}
+
+# M: Model
+population <- declare_population(
+  N    = N,
+  u_t1 = rnorm(N)*sd_1,
+  u_t2 = rnorm(N, rho * u_t1, sqrt(1 - rho^2))*sd_2,
+  Y_t1 = u_t1
+)
+
+potential_outcomes <- declare_potential_outcomes(Y_t2 ~ u_t2 + ate * Z)
+
+```
+
+This is all good until the potential_outcomes step. I think it's confusing to refer to Y_t2 and Z before they have been defined.
+
+In chunk below I just used fabricatr to generate data to get a feel for what it looked like.  
+
+```{r makedata}
+#added fabricate step
+see.data<-0  #set to 1 to inspect fabricated data
+if (see.data==1){
+df<-fabricate( N    = N,
+               u_t1 = rnorm(N)*sd_1,
+               u_t2 = rnorm(N, rho * u_t1, sqrt(1 - rho^2))*sd_2,
+               Y_t1 = u_t1,
+               Z=sample(0:1,N,replace=TRUE),
+               Y_t2 = u_t2 + ate * Z,
+               gain = Y_t2 - Y_t1)
+#This just generates u for t1 and t2 with given correlation
+#At this point Y is same as u1
+#I added Z as random assignment 0 or 1
+#Y_t2 then estimated as having additional ate of Z*ate
+
+#look at means for data we have generated so far
+df2<-df %>% group_by(df$Z)
+df2 %>% summarise(
+  u_t1 = mean(u_t1),
+  u_t2 = mean(u_t2),
+  Y_t1 = mean(Y_t1),
+  Y_t2 = mean(Y_t2),
+  gain = mean(gain)
+)
+}
+#Shows that Y values are same as u values, except for Y_t2, which has treatment effect
+```
+
+```{r inquiry}
+# I: Inquiry
+estimand <- declare_estimand(ATE = mean(Y_t2_Z_1 - Y_t2_Z_0))
+```
+
+The Inquiry step had me baffled.
+I can understand what is computed here (difference in values of Y at t2 for the two groups), but again, the problem I have is that Y_t2_Z_1 and Y_t2_Z_0 are nowhere defined in the script.
+I can easily compute them, but how do we know what variable names we can put into an inquiry?
+
+I played around with this step to try to get insight.
+Most things that I put into the estimand declaration threw an error.
+For instance, I tried mean(difference), and also mean (Y_t2 - Y_t1).  Even though both these variables are in the dataset, they give an 'object not found' error. 
+
+One thing that did work was putting mean(Y_t2_Z_1 - Y_t2_Z_1) - which makes no sense, as the difference is zero, but the programme ran, and it did actually help me, as it showed that the power was unchanged. If I have understood correctly, this is because the power depends on the model, not on the estimand? And the estimated mean in this case comes out as zero, as it should.
+
+Anyhow, what I need to know is how does the script know that there is an object Y_t2_Z_1? Where does it come from?  This would help explain what things can be used as estimands when formulating other models.
+
+
+```{r datastrategy}
+# D: Data Strategy
+assignment <- declare_assignment()
+report     <- declare_assignment(m = round(N * (1 - attrition_rate)),
+                                 assignment_variable = R)
+reveal_t2 <- declare_reveal(Y_t2) 
+manipulation <- declare_step(difference = (Y_t2 - Y_t1), handler = fabricate)  
+```
+
+I didn't understand much of what was happening here. The report step was OK.  What does declare_reveal do?
+What does declare_step do?
+
+```{r answer}
+# A: Answer Strategy
+# First method: use difference score between pretest and posttest
+pretest_lhs <- declare_estimator(
+  difference ~ Z,
+  model = lm_robust,
+  estimand = estimand,
+  subset = R == 1,
+  label = "Change score"
+)
+```
+
+I think if I can understand the earlier steps, I'll be able to make sense of the Answer step. It helped in your original example to have the 3 contrasting models, to show how the different answers were derived.
+
+```{r design}
+# Design
+pretest_posttest_design <- population + potential_outcomes + estimand +
+  assignment + reveal_t2 + report + manipulation +
+  pretest_lhs 
+diagnosis1 <- diagnose_design(pretest_posttest_design)
+myraw<-draw_data(pretest_posttest_design) #ah hah! this does give simulated data
+
+```
+As you'll see, I added a line of code to just generate a simulated dataset, as this is helpful in showing what is going on 'behind the scenes'.
+Ultimately, if I can get my head around everything, I would also add, for training purposes, some visualisations.
+
+Only question re design step is  which elements of a design are obligatory and which are optional?
+
+Design library (below) works fine and I can see this would be a good way of helping people use DeclareDesign without needing to get into the details. However, I'd like to be able to modify designs, and I'm currently finding that difficult because I'm stymied by some of the steps. For instance, I love that you can include a specification of attrition rate, but I'd like to try and make attrition rate dependent on Y_t2 (ie those who don't progress drop out). 
+
+```{r usedeslibrary}
+mydes<-pretest_posttest_designer(N = 100, ate = 0.25, sd_1 = 1, sd_2 = 1,
+                          rho = 0.5, attrition_rate = 0.1)
+ diagnose_design(mydes)
+ 
+```
+## Session information
+
+```{r sessinf}
+sessionInfo()
+```
