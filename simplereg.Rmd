@@ -27,10 +27,10 @@ library(DeclareDesign)
 library(tidyverse)
 library(DesignLibrary)
 library(beeswarm)
-library(kableExtra)
+library(knitr)
 ```
 
-Declare Design differentiates four aspects of experimental design that are not always distinguished. The first of these is the Model of the world (M). In our example, the Model for the study requires us to specify a sample size (N), and pre- and post-test scores for those who do and don't have the intervention. 
+DeclareDesign differentiates four aspects of experimental design that are not always distinguished. The first of these is the Model of the world (M). In our example, the Model for the study requires us to specify a sample size (N), and pre- and post-test scores for those who do and don't have the intervention. 
 
 It makes life simpler if we think of the test scores as normal random deviates - i.e., z-scores - where the initial pre-test values have mean of zero and SD of one.
 
@@ -64,7 +64,7 @@ population <- declare_population(
 )
 
 df1<-population()
-head(df1)
+kable(head(df1))
 ```
 
 You will see that we have a data frame with four columns. There are 100 rows (or as many as you have specified in N), but we just display the first six. The first column is just a subject identifier. We then have the two columns u_t1 and u_t2. You can think of these as the underlying variables from which the observed test scores will be derived. 
@@ -90,52 +90,54 @@ Again, we will inspect the first few rows, and see the new columns created by th
 
 potential_outcomes <- declare_potential_outcomes(Y_t2 ~ u_t2 + ate * Z)
 
-df1<-potential_outcomes(df1)
-head(df1)
-
+df1 <- potential_outcomes(df1)
+kable(head(df1))
 ```
 
-We now move to the Inquiry part of the model. Here we just have to specify the dependent variable in our study: i.e., the value on which we will compute our statistics. In this case, it is just the mean difference between the measured variable, Y, for the pre-test and post-test conditions.
+We now move to the Inquiry part of the model. Here we just have to specify the dependent variable in our study: i.e., the value on which we will compute our statistics. In this case, it is the true mean difference between the treatment and control potential outcomes of the dependant variable, Y, in the post-test period. We could also define the estimand as the true underlying difference-in-differences, `did = mean(mean(Y_t2_Z_1 - Y_t2_Z_0) - mean(Y_t1_Z_1 - Y_t1_1_0))`.
 
 
 ```{r inquiry}
 # I: Inquiry
 estimand <- declare_estimand(ATE = mean(Y_t2_Z_1 - Y_t2_Z_0))
+
+kable(estimand(df1))
 ```
 
 The next step is termed the Data Strategy. At this step we determine how individuals are assigned to groups, and we also take into account any sample attrition. In effect, we determine which cases will feature in which groups in the analysis.
 
 By looking at how df1 changes at each step of the script, we can see what is being achieved.
 
-First we declare how cases are assigned to treatments (Z). The variable Z_cond_prob is the probability that a given case will be in the treatment group. The default is for 50% to be assigned to each of two groups. In effect, the script acts to toss a coin that determines assignment of each case to Z = 1 or Z = 0.
+First we declare how cases are assigned to treatments (Z). The variable Z_cond_prob is the conditional probability that a given case will be in the treatment, if it is in the treatment group, or in the control, if it is in the control group. We assign 50% of the sample to each of two groups. In effect, the script acts to toss a coin that determines assignment of each case to Z = 1 or Z = 0.
 
 ```{r datastrategy}
 # D: Data Strategy
-assignment <- declare_assignment()
-df1<-assignment(df1)
-head(df1)
+assignment <- declare_assignment(prob = .5)
 
+df1 <- assignment(df1)
+kable(head(df1))
 ```
 
 Next we take into account the attrition rate. New columns are added to the simulation: R specifies whether or not the case is included, according to the attrition rate we specified,which is shown in the column R_cond_prob. Since attrition is set to only 10%, you probably will only see cases where R = 1 in the brief part of the data frame that is shown below, but 10% of cases will have R set to zero.
 
 ```{r attrition}
-report     <- declare_assignment(m = round(N * (1 - attrition_rate)),
+report     <- declare_assignment(prob = (1 - attrition_rate),
                                  assignment_variable = R)
-df1<-report(df1)
-head(df1)
+
+df1 <- report(df1)
+kable(head(df1))
 ```
 
-Next we need to create the actual value of Y_t2 that applies with this assignment - for cases where Z is 0 we use the value of Y_t2_Z_0, and for cases where Z is 1 we use the value of Y_t2_Z_1. The declare_reveal function automatically achieves this assignment.
+Next we need to create the actual value of Y_t2, the post-test outcome, that applies with this assignment - for cases where Z is 0 we use the value of Y_t2_Z_0, and for cases where Z is 1 we use the value of Y_t2_Z_1. The declare_reveal function automatically achieves this assignment.
 
 ```{r reveal}
 reveal_t2 <- declare_reveal(Y_t2) 
-df1<-reveal_t2(df1)
-head(df1)
 
+df1 <- reveal_t2(df1)
+kable(head(df1))
 ```
 
-Now we compute the difference score for each individual, which is the statistic we are using in our analysis. The beeswarm plot below shows the scores for all cases in the two groups. Our specified attrition rate will determine the proportion of cases lost to follow-up, shown in the plot as black dots. The mean effect size of treatment is shown both for the complete sample and the available sample after excluding those lost to attrition. Note this is unlikely to be equal to ate, because the estimate is based on a sample, whereas ate is defined in terms of the population.
+Now we compute the difference score for each individual, which is the statistic we are using in our analysis. The beeswarm plot below shows the scores for all cases in the two groups. Our specified attrition rate will determine the proportion of cases lost to follow-up, shown in the plot as black dots. The mean effect size of treatment is shown both for the complete sample and the available sample after excluding those lost to attrition. Note this is unlikely to be exactly equal to ate on a given run of the simulation, because the estimate is based on a sample, whereas ate is defined in terms of the population. 
 
 ```{r manipulation}
 
@@ -193,6 +195,20 @@ pretest_posttest_design <- population + potential_outcomes + estimand +
   assignment + reveal_t2 + report + manipulation +
   estimated_effect 
 diagnosis1 <- diagnose_design(pretest_posttest_design)
+
+kable(reshape_diagnosis(diagnosis1))
+```
+
+With the design in hand, we can also use it to quickly generate data, estimates, and estimands.
+
+```{r draw_data}
+kable(head(draw_data(pretest_posttest_design)))
+```
+```{r get_estimates}
+kable(head(get_estimates(pretest_posttest_design)))
+```
+```{r get_estimands}
+kable(head(get_estimands(pretest_posttest_design)))
 ```
 
 ## Interpreting diagnostic information
