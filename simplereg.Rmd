@@ -1,7 +1,7 @@
 ---
-title: "qus_re_declaredesign"
+title: "Gentle introduction to Declare Design"
 author: "DVM Bishop"
-date: "19/09/2018"
+date: "20th September 2018"
 output: html_document
 ---
 
@@ -9,42 +9,49 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE,results="HIDE",message=FALSE,warnings=FALSE)
 ```
 
-## Queries re Declare Design
 
-Thanks for this package: It looks really exciting and potentially very useful. However, I'm struggling to understand some aspects, and if I'm finding it hard, then I suspect many potential users will. So I think there will be a need for more user-friendly documents. I'm happy to try and help create these.
+For getting set up to use Declare Design, see [this website](https://declaredesign.org/r/declaredesign/).
 
-I've been playing with the script from: https://declaredesign.org/library/articles/pretest_posttest.html
+We'll be looking at a simplified version of the script that you can find [here](https://declaredesign.org/library/articles/pretest_posttest.html).
 
-To try to understand the different components of the analysis, I am trying this with just the difference score analysis, to keep it simple.
-(Though I really like the way you can compare the 3 possible analyses. That's something I've wanted to do in teaching, and this looks like a great way to do that. )
+The script analyses the effectiveness of an experimental design that is used to assess an intervention effect by comparing the pre- vs post-test difference score for treated vs untreated cases. For instance, you could think of this as testing the effectiveness of brain training on a memory test. We take a sample of people and measure their memory at time 1. Half of them are then given the brain-training and the others have a control intervention. Memory is measured again at time 2. For each participant, we can compute a difference score that reflects improvement in memory from time 1 to time 2. If the training is effective, we expect the difference to be bigger for the trained than for the untrained people.
 
-I can run the script without problem, and I understand the outputs. 
+Note that using difference scores is not the optimal way to analyse intervention data, but it provides a simple example of how the package works. Later on we shall see how Declare Design makes it easy to compare different approaches to analysing trial data, in terms of their efficiency and power.
 
-However, I am struggling to understand how the different steps work.
+The user is asked to estimate certain features of the results of the study, so that data can be simulated with those characteristics. This can then be used to evaluate how effective the design is in testing the hypothesis of interest - in this case the treatment effect.
 
-I'll note where I get unstuck for each chunk.
+Before we go further, you should include the R packages you need. If you have not already installed these, you will need to do that first. Go to Tools|Install Packages on the menu bar and type the names of the three packages that have 'library' commands below. Then run the lines with those commands.
 
-```{r packages}
-require(DeclareDesign)
-require(tidyverse)
+```{r packages,warning=FALSE}
+library(DeclareDesign)
+library(tidyverse)
 library(DesignLibrary)
+library(beeswarm)
+library(kableExtra)
+```
 
+Declare Design differentiates four aspects of experimental design that are not always distinguished. The first of these is the Model of the world (M). In our example, the Model for the study requires us to specify a sample size (N), and pre- and post-test scores for those who do and don't have the intervention. 
+
+It makes life simpler if we think of the test scores as normal random deviates - i.e., z-scores - where the initial pre-test values have mean of zero and SD of one.
+
+Regardless of intervention, we expect people's scores to correlate between time 1 and time 2: i.e., there will some stability in rank ordering of people's memory skills across the two measurement occasions. You have to provide an estimate of this relationship as a correlation coefficient. 
+
+In addition, an intervention effect will be expected just for the treated group: you have to provide an estimate of this in standard deviation units - i.e. as Cohen's d. In the script this is referred to as the average treatment effect (ate).
+
+In intervention studies, it is very rare for all the participants to remain in the study up to follow-up. A final parameter to be estimated is the attrition rate - i.e. the proportion of cases that will be lost to follow-up. 
+
+Let's start by specifying these sample characteristics for our Model.
+
+```{r specifyModelparameters}
 N <- 100 #sample size
 ate <- 0.25 #average treatment effect
 sd_1 <- 1 #SD for group 1
 sd_2 <- 1 #SD for group 2
 rho <- 0.5 #correlation between time1 and time2
-attrition_rate <- 0.1 #no outcome data for N*attrition_rate
+attrition_rate <- .1 #no outcome data for N*attrition_rate
 ```
 
-The cover story for this bit of the demo makes no sense to me. 
-When I saw you were using pregnancy as outcome, I thought this was because you wanted to make some particular point about binary outcomes. 
-But u_t1 and u_t2 and the Y variables derived from them are all normal continuous variables.
-
-The only way the model makes sense to me is if the units of analysis were geographical regions rather than individuals. But even then, pregnancy rates would not be normally distributed: more like a Poisson distribution.
-If individuals are unit of analysis, the cover story is particularly unusuitable because you would not presumably enlist a pregnant girl into the intervention! And the likelihood of pregnancy at t2 would be negatively correlated with pregnancy at t2!
-
-I'd like to develop this example for teaching, but change the cover story to something where a continuous variable measured pretest and posttest makes sense, so I suggest something like score on a vocabulary test before and after intervention to enhance vocabulary.
+In the next chunk of code, we input these parameters into our model. When we do this using the declare_population function, we create a data frame which contains simulated data. Usually when we run scripts from Declare Data we would not see the data frame that is gradually built up as the script proceeds, but to improve understanding of the functions, we will inspect the simulated data for each chunk, looking just at the first few rows that are created.
 
 ```{r Model}
 
@@ -56,110 +63,173 @@ population <- declare_population(
   Y_t1 = u_t1
 )
 
+df1<-population()
+head(df1)
+```
+
+You will see that we have a data frame with four columns. There are 100 rows (or as many as you have specified in N), but we just display the first six. The first column is just a subject identifier. We then have the two columns u_t1 and u_t2. You can think of these as the underlying variables from which the observed test scores will be derived. 
+
+We specified that there should be a correlation of rho between u_t1 and u_t2. Let's see what this looks like:
+
+```{r plotuvars}
+mytitle<-paste0('r = ',round(cor(df1$u_t1,df1$u_t2),3))
+plot(df1$u_t1,df1$u_t2,main=mytitle,col=2,pch=16)
+
+```
+
+It is unlikely that the correlation will be exactly the one you specified. That is because we are taking a sample from a population. You can think of the population as an enormous number of paired observations of u_t1 and u_t2 from which we are just selecting a subset of pairs. The larger our sample, the closer the observed correlation will be to the value of rho that was specified. Unless you set the random number generator to give the same answer every time (see [set.seed command](http://rfunction.com/archives/62)), the specific values of u_t1 and u_t2 will change every time you run the script. 
+
+The other variable in the data frame is our pretest score, Y_t1. This is identical to u_t1. Although this may seem redundant, in general it is helpful to keep separate the original underlying variables that are generated and the observed variables that we will enter into the analysis. This provides flexibility: for instance, we may want to have observed variables that are not normally distributed, in which case we could derive Y-t1 by transforming u_t1.
+
+Y_t2 is not a simple function of u_t2, because it depends on the intervention. For those who have the intervention, we need to add the treatment effect, ate, to u_t2. If the treatment condition, Z, is specified as 0 or 1, we can compute this with a simple formula, as shown in the next chunk. We have not yet specified which individuals have treatment, but we create two new columns giving potential outcomes depending on which the case is treated or untreated.
+
+Again, we will inspect the first few rows, and see the new columns created by the data frame. We'll also plot the values for the potential outcomes to observe the treatment effect. Note that the points for the treated condition are simply increased by an amount equivalent to ate. When we come to the data strategy step below, we will allocate cases as treated or not treated, but at the model stage, we are just representing potential outcomes. 
+
+
+```{r makeoutcomes}
+
 potential_outcomes <- declare_potential_outcomes(Y_t2 ~ u_t2 + ate * Z)
 
+df1<-potential_outcomes(df1)
+head(df1)
+
 ```
 
-This is all good until the potential_outcomes step. I think it's confusing to refer to Y_t2 and Z before they have been defined.
+We now move to the Inquiry part of the model. Here we just have to specify the dependent variable in our study: i.e., the value on which we will compute our statistics. In this case, it is just the mean difference between the measured variable, Y, for the pre-test and post-test conditions.
 
-In chunk below I just used fabricatr to generate data to get a feel for what it looked like.  
-
-```{r makedata}
-#added fabricate step
-see.data<-0  #set to 1 to inspect fabricated data
-if (see.data==1){
-df<-fabricate( N    = N,
-               u_t1 = rnorm(N)*sd_1,
-               u_t2 = rnorm(N, rho * u_t1, sqrt(1 - rho^2))*sd_2,
-               Y_t1 = u_t1,
-               Z=sample(0:1,N,replace=TRUE),
-               Y_t2 = u_t2 + ate * Z,
-               gain = Y_t2 - Y_t1)
-#This just generates u for t1 and t2 with given correlation
-#At this point Y is same as u1
-#I added Z as random assignment 0 or 1
-#Y_t2 then estimated as having additional ate of Z*ate
-
-#look at means for data we have generated so far
-df2<-df %>% group_by(df$Z)
-df2 %>% summarise(
-  u_t1 = mean(u_t1),
-  u_t2 = mean(u_t2),
-  Y_t1 = mean(Y_t1),
-  Y_t2 = mean(Y_t2),
-  gain = mean(gain)
-)
-}
-#Shows that Y values are same as u values, except for Y_t2, which has treatment effect
-```
 
 ```{r inquiry}
 # I: Inquiry
 estimand <- declare_estimand(ATE = mean(Y_t2_Z_1 - Y_t2_Z_0))
 ```
 
-The Inquiry step had me baffled.
-I can understand what is computed here (difference in values of Y at t2 for the two groups), but again, the problem I have is that Y_t2_Z_1 and Y_t2_Z_0 are nowhere defined in the script.
-I can easily compute them, but how do we know what variable names we can put into an inquiry?
+The next step is termed the Data Strategy. At this step we determine how individuals are assigned to groups, and we also take into account any sample attrition. In effect, we determine which cases will feature in which groups in the analysis.
 
-I played around with this step to try to get insight.
-Most things that I put into the estimand declaration threw an error.
-For instance, I tried mean(difference), and also mean (Y_t2 - Y_t1).  Even though both these variables are in the dataset, they give an 'object not found' error. 
+By looking at how df1 changes at each step of the script, we can see what is being achieved.
 
-One thing that did work was putting mean(Y_t2_Z_1 - Y_t2_Z_1) - which makes no sense, as the difference is zero, but the programme ran, and it did actually help me, as it showed that the power was unchanged. If I have understood correctly, this is because the power depends on the model, not on the estimand? And the estimated mean in this case comes out as zero, as it should.
-
-Anyhow, what I need to know is how does the script know that there is an object Y_t2_Z_1? Where does it come from?  This would help explain what things can be used as estimands when formulating other models.
-
+First we declare how cases are assigned to treatments (Z). The variable Z_cond_prob is the probability that a given case will be in the treatment group. The default is for 50% to be assigned to each of two groups. In effect, the script acts to toss a coin that determines assignment of each case to Z = 1 or Z = 0.
 
 ```{r datastrategy}
 # D: Data Strategy
 assignment <- declare_assignment()
-report     <- declare_assignment(m = round(N * (1 - attrition_rate)),
-                                 assignment_variable = R)
-reveal_t2 <- declare_reveal(Y_t2) 
-manipulation <- declare_step(difference = (Y_t2 - Y_t1), handler = fabricate)  
+df1<-assignment(df1)
+head(df1)
+
 ```
 
-I didn't understand much of what was happening here. The report step was OK.  What does declare_reveal do?
-What does declare_step do?
+Next we take into account the attrition rate. New columns are added to the simulation: R specifies whether or not the case is included, according to the attrition rate we specified,which is shown in the column R_cond_prob. Since attrition is set to only 10%, you probably will only see cases where R = 1 in the brief part of the data frame that is shown below, but 10% of cases will have R set to zero.
+
+```{r attrition}
+report     <- declare_assignment(m = round(N * (1 - attrition_rate)),
+                                 assignment_variable = R)
+df1<-report(df1)
+head(df1)
+```
+
+Next we need to create the actual value of Y_t2 that applies with this assignment - for cases where Z is 0 we use the value of Y_t2_Z_0, and for cases where Z is 1 we use the value of Y_t2_Z_1. The declare_reveal function automatically achieves this assignment.
+
+```{r reveal}
+reveal_t2 <- declare_reveal(Y_t2) 
+df1<-reveal_t2(df1)
+head(df1)
+
+```
+
+Now we compute the difference score for each individual, which is the statistic we are using in our analysis. The beeswarm plot below shows the scores for all cases in the two groups. Our specified attrition rate will determine the proportion of cases lost to follow-up, shown in the plot as black dots. The mean effect size of treatment is shown both for the complete sample and the available sample after excluding those lost to attrition. Note this is unlikely to be equal to ate, because the estimate is based on a sample, whereas ate is defined in terms of the population.
+
+```{r manipulation}
+
+manipulation <- declare_step(difference = (Y_t2 - Y_t1), handler = fabricate)  
+df1<-manipulation(df1)
+head(df1)
+mydiff<-round(mean(df1$difference[df1$Z==1])-mean(df1$difference[df1$Z==0]),3)
+mytemp<-filter(df1,R==1)
+mean1<-mean(mytemp$difference[mytemp$Z==1])
+mean0<-mean(mytemp$difference[mytemp$Z==0])
+mydiff2<-round((mean1-mean0),3)
+mytitle<-paste0('Average effect without attrition= ', mydiff,'\nAverage effect with attrition=',mydiff2)
+beeswarm(df1$difference~df1$Z,xlab='Treatment',pwcol=(df1$R+1),pch=16,main=mytitle,ylab='Memory score difference')
+
+segments(.8, mean0, x1=1.2,y1 = mean0,lty=1,col=1,lwd=2) #add line for mean
+segments(1.8, mean1, x1=2.2,y1 = mean1,lty=1,col=1,lwd=2)
+text(1.5,-1,'Black dots are\n cases lost to \nfollow-up\n(R = 0)')
+```
+
+The final stage is the Answer strategy. This specifies the statistical procedure used to evaluate the inquiry, using the data simulated from the model.
+In the chunk below, we can see the output from the Answer strategy. You can if you wish view the computed variable mylm, which shows that the output from estimated_effect(df1) is identical to the result obtained by running the code for the robust regression analysis on df1, after excluding those with values of R = 0 (i.e. the cases lost to follow-up).
+
 
 ```{r answer}
 # A: Answer Strategy
-# First method: use difference score between pretest and posttest
-pretest_lhs <- declare_estimator(
+# Use difference score between pretest and posttest
+estimated_effect <- declare_estimator(
   difference ~ Z,
   model = lm_robust,
   estimand = estimand,
   subset = R == 1,
   label = "Change score"
 )
+
+
+estimated_effect(df1) #print the results of the regression
+
+mylm<-lm_robust(df1$difference[df1$R==1]~df1$Z[df1$R==1])
+
+
 ```
 
-I think if I can understand the earlier steps, I'll be able to make sense of the Answer step. It helped in your original example to have the 3 contrasting models, to show how the different answers were derived.
+## Evaluating the design
+We've worked through the analysis building up simulated data for one run, but the principal purpose of this exercise is to evaluate the design by repeatedly running the simulation so that the distribution of statistics can be obtained.
+
+To do this, you specify the design by creating a list of all the processes that were involved above, joined by +.
+
+The diagnose_design function then computes various diagnostic statistics for that design. The default number of simulations is 500. This chunk of code takes time to run, with the amount of time dependent on the number of simulations.
+
+We can then see the diagnostic statistics for the design. In this script we've assigned the diagnostic information to a variable, diagnosis1, so we can display it differently, but usually you'd just have this displayed automatically on the console, using the command diagnose_design(pretest_posttest_design)
 
 ```{r design}
 # Design
 pretest_posttest_design <- population + potential_outcomes + estimand +
   assignment + reveal_t2 + report + manipulation +
-  pretest_lhs 
+  estimated_effect 
 diagnosis1 <- diagnose_design(pretest_posttest_design)
-myraw<-draw_data(pretest_posttest_design) #ah hah! this does give simulated data
-
 ```
-As you'll see, I added a line of code to just generate a simulated dataset, as this is helpful in showing what is going on 'behind the scenes'.
-Ultimately, if I can get my head around everything, I would also add, for training purposes, some visualisations.
 
-Only question re design step is  which elements of a design are obligatory and which are optional?
+## Interpreting diagnostic information
+To understand the output, it helps to read the [working paper](https://declaredesign.org/declare.pdf).
 
-Design library (below) works fine and I can see this would be a good way of helping people use DeclareDesign without needing to get into the details. However, I'd like to be able to modify designs, and I'm currently finding that difficult because I'm stymied by some of the steps. For instance, I love that you can include a specification of attrition rate, but I'd like to try and make attrition rate dependent on Y_t2 (ie those who don't progress drop out). 
+I've transposed the output and added some explanation in the chunk below.
+```{r simpleoutput}
+myoutput<-data.frame(t(diagnosis1$diagnosands_df))
+#Add a column for explanation
+myoutput$explanation<-NA
+colnames(myoutput)[1]<-'Esimate'
+myoutput$explanation[5]<-'Expected difference between estimate and estimand'
+myoutput$explanation[7]<-'Root mean squared error'
+myoutput$explanation[9]<-'Probability of rejecting null hypothesis of no effect'
+myoutput$explanation[11]<-'Probability that estimand falls within conf. interval'
+myoutput$explanation[19]<-'Probability that a significant estimate has incorrect sign'
+kable(myoutput)
+```
+
+## Design library
+The goal of this explanation is to give you some understanding of the processes involved in Declare Design; this will make it easier for you to modify scripts for specific purposes. In practice, however, for the main types of common design, you can run the same processes with minimal scripting by using the design library.
+
+In effect, you just have to specify the key parameters, and the rest is done for you by the pretest_posttest_designer function.
+
+Note that with pretest_posttest_designer, you get diagnoses for three possible ways of running the analysis. The first is 'Change score', which is the same as we have used above - you compare the pretest-posttest difference for the two treatment conditions. An alternative approach is to compare the groups on the posttest score, treating the pretest score as a covariate: this is labelled 'Condition on pretest'. The final approach is to just use posttest scores, ignoring pretest data: this is 'Posttest only'. 
+
+The Design Library is very helpful for understanding strengths and weaknesses of different approaches.
 
 ```{r usedeslibrary}
 mydes<-pretest_posttest_designer(N = 100, ate = 0.25, sd_1 = 1, sd_2 = 1,
                           rho = 0.5, attrition_rate = 0.1)
- diagnose_design(mydes)
+mydeslib<- diagnose_design(mydes)
+data.frame(t(mydeslib$diagnosands_df))
  
 ```
 ## Session information
+Session information is included for technical reasons: it can help diagnose issues if a script does not run in a given environment.
 
 ```{r sessinf}
 sessionInfo()
