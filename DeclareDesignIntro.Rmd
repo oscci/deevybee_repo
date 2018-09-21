@@ -2,7 +2,7 @@
 title: "Gentle introduction to Declare Design"
 author: "DVM Bishop"
 date: "20th September 2018"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
