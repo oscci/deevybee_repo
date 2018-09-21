@@ -58,8 +58,7 @@ In the next chunk of code, we input these parameters into our model. When we do 
 population <- declare_population(
   N    = N,
   u_t1 = rnorm(N)*sd_1,
-  u_t2 = rnorm(N, rho * u_t1, sqrt(1 - rho^2))*sd_2,
-  Y_t1 = u_t1
+  u_t2 = rnorm(N, rho * u_t1, sqrt(1 - rho^2))*sd_2
 )
 
 df1 <- population()
@@ -77,29 +76,32 @@ plot(df1$u_t1, df1$u_t2, main = mytitle, col = 2, pch = 16)
 
 It is unlikely that the correlation will be exactly the one you specified. That is because we are taking a sample from a population. You can think of the population as an enormous number of paired observations of `u_t1` and `u_t2` from which we are just selecting a subset of pairs. The larger our sample, the closer the observed correlation will be to the value of `rho` that was specified. Unless you set the random number generator to give the same answer every time (see [set.seed command](http://rfunction.com/archives/62)), the specific values of `u_t1` and `u_t2` will change every time you run the script. 
 
-The other variable in the data frame is our pretest score, Y_t1. This is identical to u_t1. Although this may seem redundant, in general it is helpful to keep separate the original underlying variables that are generated and the observed variables that we will enter into the analysis. This provides flexibility: for instance, we may want to have observed variables that are not normally distributed, in which case we could derive Y-t1 by transforming u_t1.
+Next, we need to define the potential outcomes of the study -- i.e., the outcome that unit 1 exhibits when assigned to the treatment versus when they are assigned to the control. We first define the treatment and control potential outcomes at the pre-test phase, $Y_t1$. In the chunk below, you'll notice that our pretest score potential outcomes, `Y_t1_Z_0` and `Y_t1_Z_1`, are identical to `u_t1`. Although this may seem redundant, there are two good reasons to specify the outcomes in that way. First, specifying the pre-treatment outcomes as identical in the pre-test period makes explicit our assumption that the treatment only affects outcomes in the second period. Thus, we've explicitly ruled out anticipation effects.
 
-Y_t2 is not a simple function of u_t2, because it depends on the intervention. For those who have the intervention, we need to add the treatment effect, ate, to u_t2. If the treatment condition, Z, is specified as 0 or 1, we can compute this with a simple formula, as shown in the next chunk. We have not yet specified which individuals have treatment, but we create two new columns giving potential outcomes depending on whether the case is treated or untreated.
+Second, in general it is helpful to keep separate the original underlying variables that are generated and the observed variables that we will enter into the analysis. This provides the flexibility to have observed variables that are not normally distributed. We could, for example, generate `Y_t1` as a binary variable through a probit transformation of `u_t1` by changing the declaration of `Y_t1` in our population to `draw_binary(N = N,latent = u_t1,link = "probit")`.^[Note that, generally speaking, non-linear transformations of `u_t1` and `u_t2` might lead to correlations between `Y_t1` and `Y_t2` that are not equal to `rho` in expectation.]
 
-Again, we will inspect the first few rows, and see the new columns created by the data frame. We'll also plot the values for the potential outcomes to observe the treatment effect. Note that the points for the treated condition are simply increased by an amount equivalent to ate. When we come to the data strategy step below, we will allocate cases as treated or not treated, but at the model stage, we are just representing potential outcomes. 
+`Y_t2` is not a simple function of `u_t2`, because it depends on the intervention. For those who have the intervention, we need to add the average treatment effect, `ate`, to `u_t2` whenever the treatment condition, `Z`, is specified as `1`. We have not yet specified which individuals have treatment, but we create two new columns giving potential outcomes that tell us what *would* happen if a case were treated or untreated.
+
+Again, we will inspect the first few rows, and see the new columns created by the data frame. We'll also plot the values for the potential outcomes to observe the treatment effect. Note that the points for the treated condition are simply increased by an amount equivalent to `ate`. When we come to the data strategy step below, we will allocate cases as treated or not treated, but at the model stage, we are just representing potential outcomes. 
 
 
 ```{r makeoutcomes}
+potential_outcomes <- declare_potential_outcomes(
+  Y_t1_Z_0 = u_t1,
+  Y_t1_Z_1 = u_t1,
+  Y_t2_Z_0 = u_t2,
+  Y_t2_Z_1 = u_t2 + ate)
 
-potential_outcomes <- declare_potential_outcomes(Y_t2 ~ u_t2 + ate * Z)
-
-df1<-potential_outcomes(df1)
+df1 <- potential_outcomes(df1)
 kable(head(df1))
-
 ```
 
-We now move to the Inquiry part of the model. Here we just have to specify the dependent variable in our study: i.e., the value on which we will compute our statistics. In this case, it is the true mean difference between the treatment and control potential outcomes of the dependant variable, Y, in the post-test period. We could also define the estimand as the true underlying difference-in-differences,i.e. = mean(mean(Y_t2_Z_1 - Y_t2_Z_0) - mean(Y_t1_Z_1 - Y_t1_Z_0)). However, since our model assumes no difference between groups in Y at time 1, we can drop the second part of this term.
-
-
+We now move to the Inquiry part of the model. Here we just have to specify the true underlying quantity we want to estimate. In this case, we specify two. The first is the average treatment effect in the post-test period (`ATE`), defined as the true mean post-test difference between the treatment and control potential outcomes of the dependent variable, `Y`. We also define the true underlying difference-in-differences (`DiD`) as an estimand, i.e., the true average difference in pre-post differences between treatment and control. In fact, because potential outcomes are identical in the pre-test period, these estimands are equivalent to one another. If we incorporated a violation of the no-anticipation effects assumption, for example, the estimands would no longer be equivalent. Specifying our inquiry thus helps clarify the assumptions on which our inferences are based. 
 
 ```{r inquiry}
 # I: Inquiry
-estimand <- declare_estimand(ATE = mean(Y_t2_Z_1 - Y_t2_Z_0))
+estimand <- declare_estimand(ATE = mean(Y_t2_Z_1 - Y_t2_Z_0),
+                             DiD = mean((Y_t2_Z_1 - Y_t1_Z_1) - (Y_t2_Z_0 - Y_t1_Z_0)))
 kable(estimand(df1))
 ```
 
@@ -107,7 +109,7 @@ The next step is termed the Data Strategy. At this step we determine how individ
 
 By looking at how `df1` changes at each step of the script, we can see what is being achieved.
 
-First we declare how cases are assigned to treatments (Z). The variable Z_cond_prob is the probability that a given case will be in the treatment group. The default is for 50% to be assigned to each of two groups. In effect, the script acts to toss a coin that determines assignment of each case to Z = 1 or Z = 0.
+First we declare how cases are assigned to treatments (`Z`). The variable `Z_cond_prob` is the conditional probability that a given case is in the treatment group, given it was assigned to treatment (and vice versa for control).^[For example, if the probability of assignment was .8, then units assigned to the control would have `Z_cond_prob = .2` and those assigned to treatment would have `Z_cond_prob = .8`. This is useful for designs where you want to weight observations by their assignment probabilities.] The default is for 50% to be assigned to each of two groups. In effect, the script acts to toss a coin that determines assignment of each case to `Z = 1` or `Z = 0`.
 
 ```{r datastrategy}
 # D: Data Strategy
@@ -130,10 +132,13 @@ kable(head(df1))
 Next we need to create the actual values of `Y_t1` and `Y_t2` that apply with this assignment - for cases where `Z` is 0 we use the values of `Y_t1_Z_0` and `Y_t2_Z_0`, and for cases where `Z` is 1 we use the value of `Y_t1_Z_1` and `Y_t2_Z_1`. The declare_reveal function automatically reveals the potential outcomes corresponding to a given  assignment of treatment.
 
 ```{r reveal}
+reveal_t1 <- declare_reveal(Y_t1) 
 reveal_t2 <- declare_reveal(Y_t2) 
-df1<-reveal_t2(df1)
-kable(head(df1))
 
+df1 <- reveal_t1(df1)
+df1 <- reveal_t2(df1)
+
+kable(head(df1))
 ```
 
 Now we compute the difference score for each individual, which is the statistic we are using in our analysis. This is computed as the difference between `Y` at time 1 and `Y` at time 2. The beeswarm plot below shows the scores for all cases in the two groups. Our specified attrition rate will determine the proportion of cases lost to follow-up, shown in the plot as black dots. The mean effect size of treatment is shown both for the complete sample and the available sample after excluding those lost to attrition. Note this is unlikely to be exactly equal to the average treatment effect (`ate`), because the estimate is based on a sample, whereas `ate` is defined in terms of the population.
@@ -192,8 +197,9 @@ We can then see the diagnostic statistics for the design. In this script we've a
 ```{r design}
 # Design
 pretest_posttest_design <- population + potential_outcomes + estimand +
-  assignment + reveal_t2 + report + manipulation +
+  assignment + reveal_t1 + reveal_t2 + report + manipulation +
   estimated_effect 
+
 diagnosis1 <- diagnose_design(pretest_posttest_design)
 kable(reshape_diagnosis(diagnosis1))
 ```
