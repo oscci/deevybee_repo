@@ -31,9 +31,16 @@ for (i in 1:2){ #This is the syntax to START a loop. The loop ends when a matchi
     mydf$Score[range1] <- myvectorA # First block in Score column is vectorA
     mydf$Score[range2]<-myvectorB # 2nd block in Score column is vectorB
     myt <- t.test(myvectorA,myvectorB) #see http://www.statmethods.net/stats/ttest.html
+    #set mystars as a text string with asterisks to denote conventional levels of significance
+    mystars<-''
+    if(myt$p.value<.05) {mystars<-'*'}
+    if(myt$p.value<.01) {mystars<-'**'}
+    if(myt$p.value<.001) {mystars<-'***'}
     myheader=paste0('t = ', format(myt$statistic,digits=2),'; p = ',format(myt$p.value,digits=3))
     pirateplot(Score~Group,theme=1,cex.lab=2,data=mydf,main=myheader, point.o=1, xlab="Group", ylab="Score")
-  } #end of inner loop
-dev.off() #close the pdf plot
+    text(1.5,3,mystars,col='red',cex=3) #put mystars text between groups 1 and 2 at top of chart where z=3
+                                        #cex controls size of text
+      } #end of inner loop
+ dev.off() #close the pdf plot
 } #end of outer loop
 
